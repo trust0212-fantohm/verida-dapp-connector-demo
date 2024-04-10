@@ -2,6 +2,7 @@
 import TransgateConnect from "@zkpass/transgate-js-sdk";
 import { ZKPASS_APP_ID } from "../config/config";
 import { useState } from "react";
+import { schemas } from "../config/zk-schemas";
 
 export const Status = {
   None: 0,
@@ -10,7 +11,7 @@ export const Status = {
   Failed: 3,
 };
 
-async function processZK(schemaId) {
+async function processZK(schemaId: string) {
   // Create the connector instance
   const connector = new TransgateConnect(ZKPASS_APP_ID);
   // Check if the TransGate extension is installed
@@ -25,7 +26,7 @@ async function processZK(schemaId) {
   }
 }
 
-async function sendMessage(veridaDid, msg) {
+async function sendMessage(veridaDid: string, msg: any) {
   const res = await fetch("/api/send-message", {
     method: "POST",
     body: JSON.stringify({
@@ -42,14 +43,14 @@ async function sendMessage(veridaDid, msg) {
 }
 
 export const useZkPass = () => {
-  const [zkStatus, setZkStatus] = useState(Status.None);
-  const [msgStatus, setMsgStatus] = useState(Status.None);
+  const [zkStatus, setZkStatus] = useState<number>(Status.None);
+  const [msgStatus, setMsgStatus] = useState<number>(Status.None);
 
-  const verify = async (schemaId, veridaDid) => {
+  const verify = async (schemaId: string, veridaDid: string) => {
     setZkStatus(Status.None);
     setMsgStatus(Status.None);
 
-    let msg = undefined;
+    let msg: any = undefined;
     try {
       setZkStatus(Status.Processing);
       msg = await processZK(schemaId);
@@ -62,7 +63,11 @@ export const useZkPass = () => {
     if (msg) {
       try {
         setMsgStatus(Status.Processing);
-        await sendMessage(veridaDid, msg);
+        await sendMessage(veridaDid, {
+          ...msg,
+          zkPassSchemaId: schemaId,
+          zkPassSchemaLabel: schemas.find(item => item.id === schemaId)?.title || "No label"
+        });
         setMsgStatus(Status.Success);
       } catch (err) {
         console.log("Verida Message error: ", err);
