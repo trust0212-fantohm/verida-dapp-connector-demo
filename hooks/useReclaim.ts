@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { RECLAIM_APP_ID } from "../config/config";
 import { Status } from "./useZkPass";
+import { Schema, ZkPassResult } from "../@types";
 
-export const useReclaim = (provider_id: string) => {
+export const useReclaim = (schema: Schema) => {
   const [requestUrl, setRequestUrl] = useState<string>("");
   const [statusUrl, setStatusUrl] = useState<string>("");
 
@@ -14,13 +15,13 @@ export const useReclaim = (provider_id: string) => {
 
   useEffect(() => {
     (async () => {
-      if (!provider_id) return;
+      if (!schema || schema.src !== "reclaim") return;
       setStatusTxt("Generating verification link");
       const res = await fetch("/api/reclaim-verification", {
         method: "POST",
         body: JSON.stringify({
           app_id: RECLAIM_APP_ID,
-          provider_id: provider_id,
+          provider_id: schema.id,
         }),
       });
 
@@ -34,14 +35,19 @@ export const useReclaim = (provider_id: string) => {
         setStatusTxt("Failed generatig verification link.");
       }
     })();
-  }, [provider_id]);
+  }, [schema]);
 
-  async function sendMessage(veridaDid: string, msg: any) {
+  async function sendMessage(
+    veridaDid: string,
+    msg: ZkPassResult,
+    schema: Schema
+  ) {
     const res = await fetch("/api/send-message", {
       method: "POST",
       body: JSON.stringify({
         msg,
         veridaDid,
+        schema,
       }),
     });
 
@@ -53,7 +59,7 @@ export const useReclaim = (provider_id: string) => {
   }
 
   const startVerification = useCallback(
-    (veridaDid: string) => {
+    (veridaDid: string, schema: Schema) => {
       setZkStatus(Status.None);
       setMsgStatus(Status.None);
 
@@ -79,7 +85,7 @@ export const useReclaim = (provider_id: string) => {
                 if (context) {
                   try {
                     setMsgStatus(Status.Processing);
-                    await sendMessage(veridaDid, context);
+                    await sendMessage(veridaDid, context, schema);
                     setStatusTxt("Message sent!");
                     setMsgStatus(Status.Success);
                   } catch (err) {
@@ -102,5 +108,12 @@ export const useReclaim = (provider_id: string) => {
     [statusUrl, requestUrl]
   );
 
-  return { requestUrl, statusUrl, startVerification, statusTxt, zkStatus, msgStatus };
+  return {
+    requestUrl,
+    statusUrl,
+    startVerification,
+    statusTxt,
+    zkStatus,
+    msgStatus,
+  };
 };
